@@ -33,7 +33,7 @@ fn_check_uinput(){
                 fn_usage
         fi
 	# Too many arguments
-	if [ -n "${toomanyhargs}"]; then
+	if [ -n "${toomanyhargs}" ]; then
                echo "Too many arguments!"
                fn_usage
 	fi
