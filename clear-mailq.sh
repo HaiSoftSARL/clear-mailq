@@ -7,6 +7,7 @@
 # Set input
 command="$1"
 timevalue="$2"
+toomanyhargs="$3"
 
 # Script self name
 selfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
@@ -32,10 +33,10 @@ fn_check_uinput(){
                 fn_usage
         fi
 	# Too many arguments
-#	if [ -n "${3}"]; then
-#               echo "Too many arguments!"
-#               fn_usage
-#	fi
+	if [ -n "${toomanyhargs}"]; then
+               echo "Too many arguments!"
+               fn_usage
+	fi
 }
 
 fn_usage(){
@@ -71,24 +72,42 @@ fn_mailq(){
 	echo "[START] Gathering mail queue"
         mailqueue="$(mailq)"
         echo "[INFO] Sorting mail queue"
-        sortedq="$(echo "${mailqueue}" | grep "^[A-F0-9]" | sort -k5n -k6n | awk '{print $1 " " $4 " " $5 " " $6}')"
+        # sortedq="$(echo "${mailqueue}" | grep "^[A-F0-9]" | sort -k5n -k6n | awk '{print $1 " " $4 " " $5 " " $6}')"
+	sortedq="$(echo "${mailqueue}" | grep "^[A-F0-9]" -A2 )"
 }
 
 fn_show_expired(){
         oldcount=0
         totalcount=0
         echo "[INFO] Gathering information"
-        while IFS= read -r line; do
-                if [ -n "$(grep "^[A-F0-9]")" ]; then
-                        fn_compare_date "$(echo "$line" | awk '{print $2 " " $3 " " $4 " " $5}')"
-                        if [ "${hDiff}" -ge "${timevalue}" ]; then
-                                mailid="$(echo "$line" | awk '{print $1}')"
-                                echo ""
-                                echo "${mailqueue}" | grep "${mailid}" -A2
-                                oldcount="$((oldcount+1))"
-                        fi
-                        totalcount="$((totalcount+1))"
-                fi
+	# View info from sorted mails
+	while IFS= read -r line; do
+		# Workaround to make the loop lighter
+		if [ "${detection}" == "positive" ]; then
+			echo "${line}"
+			detection="lastline"
+		elif [ "${detection}" == "lastline" ];then
+			echo "${line}"
+			unset lastline
+		else
+			# If line starts with hexadecimal value (mail ID), then we grep the mailid
+			mailid="$(echo "$line" | grep "^[A-F0-9]" | awk '{print $1}')"
+			# If the mailid is set
+			if [ -n "${mailid}" ]; then
+				# The date of the mail
+				maildate="$(echo "$line" | awk '{print $4 " " $5 " " $6}')"
+				# How old is the mail compared to now
+				fn_compare_date "${maildate}"
+				# If mail is older than time set
+				if [ "${hDiff}" -ge "${timevalue}" ]; then
+					detection="positive"
+					echo ""
+					echo "${line}"
+					oldcount="$((oldcount+1))"
+				fi
+				totalcount="$((totalcount+1))"	
+			fi
+		fi
         done < <(echo "${sortedq}")
         echo "[INFO] Mails older than ${timevalue} hours: ${oldcount} out of ${totalcount} total"
         exit
