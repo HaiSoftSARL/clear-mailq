@@ -1,0 +1,121 @@
+#!/bin/bash
+# Function Clear mail queue
+# Author: Robin Labadie
+# Company: HaiSoft
+# Usage: mailq.sh -d [time]
+
+# Set input
+command="$1"
+timevalue="$2"
+
+# Script self name
+selfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
+
+# Check user input
+fn_check_uinput(){
+        # No command was provided
+        if [ -z "${command}" ]; then
+                echo "Missing argument!"
+                fn_usage
+        # Check if command is valid
+        elif [ "${command}" != "-r" ]&&[ "${command}" != "-s" ]; then
+                echo "Command unknown!"
+                fn_usage
+        fi
+	# No time value set
+        if [ -z "${timevalue}" ]; then
+                # Default to 1 hour
+                timevalue="1"
+        # Time value is not a number
+        elif [[ "${timevalue}" != ?(-)+([0-9]) ]]; then
+                echo "Invalid time!"
+                fn_usage
+        fi
+	# Too many arguments
+#	if [ -n "${3}"]; then
+#               echo "Too many arguments!"
+#               fn_usage
+#	fi
+}
+
+fn_usage(){
+	echo ""
+        echo "Usage: ./${selfname} -arg [time in hours]"
+        echo "Available commands:"
+        echo " * ./${selfname} -s [time in hours] - Show outdated mails in queue"
+        echo " * ./${selfname} -r [time in hours] - Remove outdated mails in queue"
+        exit
+}
+
+fn_compare_date(){
+        # Date 1
+        #dt1="Wed May 31 08:21:14 "
+        dt1="$1"
+        # Compute the seconds since epoch for date 1
+        t1="$(date --date="$dt1" +%s)"
+
+        # Date 2 : Current date
+        dt2="$(date +%Y-%m-%d\ %H:%M:%S)"
+        # Compute the seconds since epoch for date 2
+        t2="$(date --date="$dt2" +%s)"
+
+        # Compute the difference in dates in seconds
+        let "tDiff=$t2-$t1"
+        # Compute the approximate hour difference
+        let "hDiff=$tDiff/3600"
+
+        # returns hDiff
+}
+
+fn_mailq(){
+	echo "[START] Gathering mail queue"
+        mailqueue="$(mailq)"
+        echo "[INFO] Sorting mail queue"
+        sortedq="$(echo "${mailqueue}" | grep "^[A-F0-9]" | sort -k5n -k6n | awk '{print $1 " " $4 " " $5 " " $6}')"
+}
+
+fn_show_expired(){
+        oldcount=0
+        totalcount=0
+        echo "[INFO] Gathering information"
+        while IFS= read -r line; do
+                if [ -n "$(grep "^[A-F0-9]")" ]; then
+                        fn_compare_date "$(echo "$line" | awk '{print $2 " " $3 " " $4 " " $5}')"
+                        if [ "${hDiff}" -ge "${timevalue}" ]; then
+                                mailid="$(echo "$line" | awk '{print $1}')"
+                                echo ""
+                                echo "${mailqueue}" | grep "${mailid}" -A2
+                                oldcount="$((oldcount+1))"
+                        fi
+                        totalcount="$((totalcount+1))"
+                fi
+        done < <(echo "${sortedq}")
+        echo "[INFO] Mails older than ${timevalue} hours: ${oldcount} out of ${totalcount} total"
+        exit
+}
+
+fn_remove_expired(){
+        oldcount=0
+        totalcount=0
+        echo "[INFO] Gathering information"
+        while IFS= read -r line; do
+                fn_compare_date "$(echo "$line" | awk '{print $2 " " $3 " " $4 " " $5}')"
+                if [ "${hDiff}" -ge "${timevalue}" ]; then
+                        mailid="$(echo "$line" | awk '{print $1}')"
+                        echo "Removing mail ${mailid}"
+                        postsuper -d "${mailid}"
+                        oldcount="$((oldcount+1))"
+                fi
+                totalcount="$((totalcount+1))"
+        done < <(echo "${sortedq}")
+        echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${oldcount} total"
+        exit
+}
+
+fn_check_uinput
+fn_mailq
+if [ "${command}" == "-s" ]; then
+        fn_show_expired
+elif [ "${command}" == "-r" ]; then
+        echo "Command available soon"
+fi
