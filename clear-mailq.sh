@@ -2,7 +2,7 @@
 # Function Clear mail queue
 # Author: Robin Labadie
 # Company: HaiSoft
-# Usage: mailq.sh -d [time]
+# Usage: clear-mailq.sh -s/d [time]
 
 # Set input
 command="$1"
@@ -88,7 +88,7 @@ fn_show_expired(){
 			detection="lastline"
 		elif [ "${detection}" == "lastline" ];then
 			echo "${line}"
-			unset lastline
+			unset detection
 		else
 			# If line starts with hexadecimal value (mail ID), then we grep the mailid
 			mailid="$(echo "$line" | grep "^[A-F0-9]" | awk '{print $1}')"
