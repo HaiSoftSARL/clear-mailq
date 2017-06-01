@@ -12,6 +12,9 @@ toomanyhargs="$3"
 # Script self name
 selfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
 
+# TIME
+SECONDS=0
+
 # Check user input
 fn_check_uinput(){
         # No command was provided
@@ -114,7 +117,6 @@ fn_show_expired(){
 		fi
         done < <(echo "${sortedq}")
         echo "[INFO] Mails older than ${timevalue} hours: ${oldcount} out of ${totalcount} total"
-        exit
 }
 
 fn_remove_expired(){
@@ -140,7 +142,6 @@ fn_remove_expired(){
 		fi
 	done < <(echo "${sortedq}")
 	echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${totalcount} total"
-	exit
 }
 
 fn_check_uinput
@@ -150,3 +151,7 @@ if [ "${command}" == "-s" ]; then
 elif [ "${command}" == "-r" ]; then
 	fn_remove_expired
 fi
+# Display duration
+duration=$SECONDS
+echo "[INFO] $(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+exit
