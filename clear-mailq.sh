@@ -24,7 +24,7 @@ fn_check_uinput(){
                 fn_usage
         fi
 	# Command -r without time
-	if [ -n "${command}" == "-r" ]&&[ -z "${timevalue}" ]; then
+	if [ "${command}" == "-r" ]&&[ -z "${timevalue}" ]; then
                echo "Cannot remove without a time value"
                fn_usage
 	# No time value set
