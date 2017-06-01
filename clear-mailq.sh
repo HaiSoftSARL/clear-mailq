@@ -23,8 +23,12 @@ fn_check_uinput(){
                 echo "Command unknown!"
                 fn_usage
         fi
+	# Command -r without time
+	if [ -n "${command}" == "-r" ]&&[ -z "${timevalue}" ]; then
+               echo "Cannot remove without a time value"
+               fn_usage
 	# No time value set
-        if [ -z "${timevalue}" ]; then
+        elif [ -z "${timevalue}" ]; then
                 # Default to 1 hour
                 timevalue="1"
         # Time value is not a number
@@ -116,25 +120,33 @@ fn_show_expired(){
 fn_remove_expired(){
         oldcount=0
         totalcount=0
-        echo "[INFO] Gathering information"
-        while IFS= read -r line; do
-                fn_compare_date "$(echo "$line" | awk '{print $2 " " $3 " " $4 " " $5}')"
-                if [ "${hDiff}" -ge "${timevalue}" ]; then
-                        mailid="$(echo "$line" | awk '{print $1}')"
-                        echo "Removing mail ${mailid}"
-                        postsuper -d "${mailid}"
-                        oldcount="$((oldcount+1))"
-                fi
-                totalcount="$((totalcount+1))"
-        done < <(echo "${sortedq}")
-        echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${oldcount} total"
-        exit
+        echo "[ACTION] Removing..."
+	while IFS= read -r line; do
+		# If line starts with hexadecimal value (mail ID), then we grep the mailid
+		mailid="$(echo "$line" | grep "^[A-F0-9]" | awk '{print $1}')"
+		# If the mailid is set
+		if [ -n "${mailid}" ]; then
+			# The date of the mail
+			maildate="$(echo "$line" | awk '{print $4 " " $5 " " $6}')"
+			# How old is the mail compared to now
+			fn_compare_date "${maildate}"
+			# If mail is older than time set
+			if [ "${hDiff}" -ge "${timevalue}" ]; then
+				echo "[ACTION] Removing mail ${mailid}"
+				postsuper -d "${mailid}"
+				oldcount="$((oldcount+1))"
+			fi
+			totalcount="$((totalcount+1))"	
+		fi
+	done < <(echo "${sortedq}")
+	echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${oldcount} total"
+	exit
 }
 
 fn_check_uinput
 fn_mailq
 if [ "${command}" == "-s" ]; then
-        fn_show_expired
+	fn_show_expired
 elif [ "${command}" == "-r" ]; then
-        echo "Command available soon"
+	fn_remove_expired
 fi
