@@ -139,7 +139,7 @@ fn_remove_expired(){
 			totalcount="$((totalcount+1))"	
 		fi
 	done < <(echo "${sortedq}")
-	echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${oldcount} total"
+	echo "[INFO] ${oldcount} mails older than ${timevalue} hours removed out of ${totalcount} total"
 	exit
 }
 
